@@ -1,0 +1,161 @@
+/* Rotina de acionamento do atuador CAMA MP7097 e monitoramento da temperatura do atuador
+
+  Materiais: Arduino MEGA 2560
+             Atuador 200mm 24VDC
+             Sensor de temperatura (termistor 2k)
+             Módulo Relé
+*/
+
+//#include <Wire.h>
+//#include <SPI.h>
+
+#define pinA  7
+#define pinB  2
+#define sw 20
+#define IN1 11
+#define IN2 10
+
+unsigned int cont = 0, teste = 3000;
+bool est;
+
+void setup() {
+  pinMode(pinB, INPUT);                                                // Pino do microswitch (inferior)
+  pinMode(pinA, INPUT);                                                // Pino do microswitch (superior)
+  pinMode(sw, INPUT_PULLUP);                                           // 'Chave' de pause
+  pinMode(A0, INPUT);                                                  // Pino do termistor
+  pinMode(IN1, OUTPUT);                                                // Pino de sinal Relé 1 
+  pinMode(IN2, OUTPUT);                                                // Pino de sinal Relé 2
+  Serial.begin(9600);
+  Serial.flush();
+}
+
+void loop() {
+  Serial.println("-------------------------------------");
+  desce();
+  while (cont < teste){
+    Serial.print("Ciclos = ");
+    Serial.println(cont);
+    Serial.print("Temperatura do motor = ");
+    float resistencia = getResistencia (A0, 5.0, 1024.0, 1000.0);
+    float beta = calcularCoeficienteBetaTermistor();
+    float temperatura = readTemperaturaNTC(resistencia, 1000.0, 5, beta);
+    Serial.println(temperatura, 1);
+    float temperaturaMedia = mediaDeVariavel(temperatura);
+    Serial.print("Média da temperatura: ");
+    Serial.println(temperaturaMedia, 1);
+    Serial.println ("-------------------------------------");
+    delay(100);
+    if (temperatura >= 38.0) {
+      delay(300);
+      Serial.println("Alta temperatura detectada!!!");
+      Serial.println ("-------------------------------------");
+    } else {
+      sobe();
+      Serial.println ("Fim de curso superior acionado");
+      delay(500);
+      desce();
+      Serial.println("Fim de curso inferior acionado");
+      Serial.println ("-------------------------------------");
+      delay(500);
+      cont = cont + 1;
+    }
+    delay(500);
+  }
+  if (cont >= teste){
+    Serial.println("Finished test");
+    Serial.print("Ciclos completos = ");
+    Serial.println(cont);
+    cont = 0;
+    delay(200);
+  }
+  delay(500);
+  }
+
+  void sobe () {
+  est = true;
+  while (est == true) {
+      if (digitalRead(pinA) == HIGH) {
+        est = false;
+      }
+      digitalWrite(IN2, HIGH);
+      digitalWrite(IN1, LOW);
+    }
+    digitalWrite(IN1, HIGH);
+    delay(500);
+  }
+
+  void desce() {
+    est = true;
+    while (est == true) {
+      if (digitalRead(pinB) == HIGH) {
+        est = false;
+      }
+      digitalWrite(IN2, LOW);
+      digitalWrite(IN1, HIGH);
+    }
+    digitalWrite(IN2, HIGH);
+    delay(500);
+  }
+
+  float getResistencia(int pin, float voltageUc, float adcResolutionUc, float resistenciaEmSerie) {
+    float resistenciaDesconhecida = 0;
+    resistenciaDesconhecida = resistenciaEmSerie * (voltageUc / ((analogRead(pin) * voltageUc) / adcResolutionUc) - 1);
+    return resistenciaDesconhecida;
+  }
+
+  float calcularCoeficienteBetaTermistor() {
+    float beta;
+    const float T1 = 273.15;        //Temperatura 0 graus Celsius em Kelvin.
+    const float T2 = 373.15;        //Temperatura 100 graus Celsius em Kelvin.
+    const float RT1 = 6798.0;       //Resistência em T1.
+    const float RT2 = 140.9;        //Resistência em T2.
+
+    beta = (log(RT1 / RT2)) / ((1 / T1) - (1 / T2)); //Cálculo do Beta.
+
+    return beta;
+  }
+
+  float readTemperaturaNTC(float resistenciaTermistor, float resistenciaResistorSerie, float voltageUc, float Beta) {
+    const double To = 298.15;                                 //Temperatura em Kelvin para 25 graus Celsius.
+    const double Ro = 2047.0;                                //Resistência do termistor à 25 graus Celsius.
+
+    double Vout = 0;        //Tensão lida na porta analógica do termistor.
+    double Rt = 0;          //Resistencia lida da porta analógica.
+    double Tk = 0;          //Temperatura em Kelvin.
+    double Tc = 0;          //Temperatura em Graus Celsius.
+
+    Vout = resistenciaResistorSerie / (resistenciaResistorSerie + resistenciaTermistor) * voltageUc;      //Tensão lida na porta analógica do termistor.
+    Rt = resistenciaResistorSerie * Vout / (voltageUc - Vout);                                            //Resistência na porta analógica.
+    Tk = 1 / (1 / To + log(Rt / Ro) / Beta); // Equação do Beta para obter a temperatura em Kelvin
+
+    Tc = Tk - 273.15;       //Conversão de K para C
+
+    return Tc;
+  }
+
+  float mediaDeVariavel (float variavel) {
+    const int qtdLeituras = 10;
+
+    static bool firstExecution = true;        
+    static float readings [qtdLeituras];
+    static int readIndex = 0;
+    static float total = 0;
+    float average = 0;
+
+    if (firstExecution == true) {
+      for (int thisReading = 0; thisReading < qtdLeituras; thisReading++) {
+        readings[thisReading] = variavel;
+      }
+      total = variavel * qtdLeituras;
+      firstExecution = false;
+    }
+    total = total - readings[readIndex];
+    readings[readIndex] = variavel;
+    total = total + readings[readIndex];
+    readIndex = readIndex + 1;
+    if (readIndex >= qtdLeituras) {
+      readIndex = 0;
+    }
+    average = total / qtdLeituras;
+    return average;
+  }
