@@ -15,13 +15,12 @@ sbit LCD_D6_Direction at TRISE1_bit;
 sbit LCD_D7_Direction at TRISE2_bit;
 ////////////////////Fim da comunicação////////////////////////////////
 ////////////////////////Variáveis/////////////////////////////////////
-unsigned char mode, conf, select = 1;
+unsigned char mode, conf = 0, select = 1;
 char UserTemp = 24, Tmax, Tmin;
-char temp_str[5], UserTemp_str[5];
+char temp_str[4], UserTemp_str[4];
 float temp = 0.0;
 /////////////////////////////////////////////////////////////////////
 const char character[] = {0,4,14,4,0,14,0,0};
-
 void CustomChar(char pos_row, char pos_char) {
   char i;
     Lcd_Cmd(64);
@@ -32,12 +31,12 @@ void CustomChar(char pos_row, char pos_char) {
 /////////////////////////////////////////////////////////////////////
 void interrupt(){
   static char time = 0;
-  if(intcon.intf == 1){
+  if(intcon.intf == 1){         // Retornar ao Menu Inicial
     mode = 0;
     delay_ms (10);
   }
-  if(intcon.tmr0if == 0){
-    if(mode == 0){
+  if(intcon.tmr0if == 0){       // Piscar a seta sem interferir na leitura do
+    if(mode == 0){              // PORTB
       time++;
        if(time == 200){
         switch (select){
@@ -233,7 +232,11 @@ void menus(){
   }
 }
 void setup(){
-  intcon = 0b10110000;
+    intcon = 0b10110000;
+    intcon.intf = 0;                      // Interrupções
+    intcon.tmr0if = 0;
+    option_reg = 0b10000010;
+    TMR0 = 6;                             // Tempo de estouro de 1ms
   adcon0 = 7;
   TRISA = 0xFF;
   TRISB = 0xFF;
@@ -249,7 +252,7 @@ void setup(){
   LCD_CMD(_LCD_RETURN_HOME);
   LCD_OUT(1,1,"FATEC-SP");
   LCD_OUT(2,1,"CLIMATIZADOR v0");
-  //delay_ms(5000);
+  delay_ms(5000);
 }
 void main() {
   setup();
