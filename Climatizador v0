@@ -15,12 +15,14 @@ sbit LCD_D6_Direction at TRISE1_bit;
 sbit LCD_D7_Direction at TRISE2_bit;
 ////////////////////Fim da comunicação////////////////////////////////
 ////////////////////////Variáveis/////////////////////////////////////
+const unsigned char *txt[] = {"Selection mode:","AC","H", "Auto","Air-Conditioning",
+                              "S =     1 T =   ","Heater mode:","Auto mode:","->","  "};
 unsigned char mode, conf = 0, select = 1;
 char UserTemp = 24, Tmax, Tmin;
 char temp_str[4], UserTemp_str[4];
 float temp = 0.0;
 /////////////////////////////////////////////////////////////////////
-const char character[] = {0,4,14,4,0,14,0,0};
+char character[] = {0,4,14,4,0,14,0,0};
 void CustomChar(char pos_row, char pos_char) {
   char i;
     Lcd_Cmd(64);
@@ -33,7 +35,6 @@ void interrupt(){
   static char time = 0;
   if(intcon.intf == 1){         // Retornar ao Menu Inicial
     mode = 0;
-    delay_ms (10);
   }
   if(intcon.tmr0if == 0){       // Piscar a seta sem interferir na leitura do
     if(mode == 0){              // PORTB
@@ -41,13 +42,13 @@ void interrupt(){
        if(time == 200){
         switch (select){
           case '1':
-            LCD_OUT(2,1,"->");
+            LCD_OUT(2,1,*txt[9]);
             break;
           case '2':
-            LCD_OUT(2,5,"->");
+            LCD_OUT(2,5,*txt[9]);
             break;
           case '3':
-            LCD_OUT(2,9,"->");
+            LCD_OUT(2,9,*txt[9]);
             break;
           default:
             break;
@@ -56,13 +57,13 @@ void interrupt(){
          time = 0;
          switch (select){
            case '1':
-             LCD_OUT(2,1,"  ");
+             LCD_OUT(2,1,*txt[10]);
              break;
            case '2':
-             LCD_OUT(2,5,"  ");
+             LCD_OUT(2,5,*txt[10]);
              break;
            case '3':
-             LCD_OUT(2,9,"  ");
+             LCD_OUT(2,9,*txt[10]);
              break;
            default:
              break;
@@ -104,28 +105,28 @@ void menus(){
   switch (mode){
     case '0':
       LCD_CMD(_LCD_CLEAR);
-      LCD_OUT(1,1,"Selection mode:");
-      LCD_OUT(2,3,"AC");
-      LCD_OUT(2,8,"H");
-      LCD_OUT(2,12,"Auto");
+      LCD_OUT(1,1,*txt[1]);
+      LCD_OUT(2,3,*txt[2]);
+      LCD_OUT(2,8,*txt[3]);
+      LCD_OUT(2,12,*txt[4]);
       conf = 0;
-      delay_ms (10);
+      Vdelay_ms (10);
       PORTD = 0;
       while(conf == 0){
         if(PORTB.RB1 == 0){
-          delay_ms(10);
+          Vdelay_ms(10);
           select++;
           if(select > 3)
             select = 3;
           }
         if(PORTB.RB2 == 0){
-          delay_ms(10);
+          Vdelay_ms(10);
           select--;
           if(select < 1)
             select = 1;
           }
         if(PORTB.RB3 == 0){
-          delay_ms (10);
+          Vdelay_ms (10);
           mode = select;
           conf = 1;
           }
@@ -133,8 +134,8 @@ void menus(){
         break;
     case '1':
       LCD_CMD(_LCD_CLEAR);
-      LCD_OUT(1,1,"Air-Conditioning");
-      LCD_OUT(2,1,"S =     1 T =   ");
+      LCD_OUT(1,1,*txt[5]);
+      LCD_OUT(2,1,*txt[6]);
       CustomChar(2,8);
       while(0){
         getTemp();
@@ -147,11 +148,11 @@ void menus(){
         LCD_OUT(2,5,UserTemp_str);
         LCD_OUT(2,15,temp_str);
         if(PORTB.RB1 == 0){
-          delay_ms(10);
+          Vdelay_ms(10);
           UserTemp++;
           }
          if(PORTB.RB2 == 0){
-           delay_ms(10);
+           Vdelay_ms(10);
            UserTemp--;
          }
         if(temp>Tmax)
@@ -162,8 +163,8 @@ void menus(){
     }
     case '2':
       LCD_CMD(_LCD_CLEAR);
-      LCD_OUT(1,3,"Heater mode:");
-      LCD_OUT(2,1,"S =     1 T =   ");
+      LCD_OUT(1,3,*txt[7]);
+      LCD_OUT(2,1,*txt[6]);
       CustomChar(2,8);
       while(0){
         getTemp();
@@ -176,11 +177,11 @@ void menus(){
         LCD_OUT(2,5,UserTemp_str);
         LCD_OUT(2,15,temp_str);
         if(PORTB.RB1 == 0){
-          delay_ms(10);
+          Vdelay_ms(10);
           UserTemp++;
           }
          if(PORTB.RB2 == 0){
-           delay_ms(10);
+           Vdelay_ms(10);
            UserTemp--;
          }
         if(temp < Tmax)
@@ -191,8 +192,8 @@ void menus(){
       }
     case '3':
       LCD_CMD(_LCD_CLEAR);
-      LCD_OUT(1,4,"Auto mode:");
-      LCD_OUT(2,1,"S =     1 T =   ");
+      LCD_OUT(1,4,*txt[8]);
+      LCD_OUT(2,1,*txt[6]);
       CustomChar(2,8);
       PORTD = 0;
       while(0){
@@ -206,11 +207,11 @@ void menus(){
         LCD_OUT(2,5,UserTemp_str);
         LCD_OUT(2,15,temp_str);
         if(PORTB.RB1 == 0){
-          delay_ms(10);
+          Vdelay_ms(10);
           UserTemp++;
           }
          if(PORTB.RB2 == 0){
-           delay_ms(10);
+           Vdelay_ms(10);
            UserTemp--;
          }
         if(temp > Tmax){
@@ -220,7 +221,7 @@ void menus(){
           }
         if(temp < Tmin){
           PORTD.RD0 = 0;
-          delay_ms(10);
+          Vdelay_ms(10);
           PORTD.RD1 = 1;
         }
         else{
@@ -231,7 +232,7 @@ void menus(){
       }
   }
 }
-void setup(){
+const void setup(){
     intcon = 0b10110000;
     intcon.intf = 0;                      // Interrupções
     intcon.tmr0if = 0;
@@ -247,12 +248,14 @@ void setup(){
   PORTE = 0x00;
   PORTD = 0x00;
   LCD_init();
+  /*
   LCD_CMD(_LCD_CLEAR);
   LCD_CMD(_LCD_CURSOR_OFF);
   LCD_CMD(_LCD_RETURN_HOME);
   LCD_OUT(1,1,"FATEC-SP");
   LCD_OUT(2,1,"CLIMATIZADOR v0");
-  delay_ms(5000);
+  Vdelay_ms(5000);
+  */
 }
 void main() {
   setup();
