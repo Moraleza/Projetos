@@ -6,7 +6,6 @@ sbit LCD_D4 at RA5_bit;
 sbit LCD_D5 at RE0_bit;
 sbit LCD_D6 at RE1_bit;
 sbit LCD_D7 at RE2_bit;
-
 sbit LCD_RS_Direction at TRISB6_bit;
 sbit LCD_EN_Direction at TRISB7_bit;
 sbit LCD_D4_Direction at TRISA5_bit;
@@ -19,11 +18,11 @@ const unsigned char *txt[] = {"Selection mode:","AC","H", "Auto","Air-Conditioni
                               "S =     1 T =   ","Heater mode:","Auto mode:","->","  "};
 unsigned char mode, conf = 0, select = 1;
 char UserTemp = 24, Tmax, Tmin;
-char temp_str[4], UserTemp_str[4];
+char temp_str[8], UserTemp_str[8];
 float temp = 0.0;
 /////////////////////////////////////////////////////////////////////
-char character[] = {0,4,14,4,0,14,0,0};
-void CustomChar(char pos_row, char pos_char) {
+const char character[] = {0,4,14,4,0,14,0,0};
+const void CustomChar(char pos_row, char pos_char) {
   char i;
     Lcd_Cmd(64);
     for (i = 0; i<=7; i++) Lcd_Chr_CP(character[i]);
