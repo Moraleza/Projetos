@@ -1,0 +1,259 @@
+/////////////////////////TESTE LCD////////////////////////////////////
+//////////////////////Comunicação do LCD//////////////////////////////
+sbit LCD_RS at RB6_bit;
+sbit LCD_EN at RB7_bit;
+sbit LCD_D4 at RA5_bit;
+sbit LCD_D5 at RE0_bit;
+sbit LCD_D6 at RE1_bit;
+sbit LCD_D7 at RE2_bit;
+
+sbit LCD_RS_Direction at TRISB6_bit;
+sbit LCD_EN_Direction at TRISB7_bit;
+sbit LCD_D4_Direction at TRISA5_bit;
+sbit LCD_D5_Direction at TRISE0_bit;
+sbit LCD_D6_Direction at TRISE1_bit;
+sbit LCD_D7_Direction at TRISE2_bit;
+////////////////////Fim da comunicação////////////////////////////////
+////////////////////////Variáveis/////////////////////////////////////
+unsigned char mode, conf, select = 1;
+char UserTemp = 24, Tmax, Tmin;
+char temp_str[5], UserTemp_str[5];
+float temp = 0.0;
+/////////////////////////////////////////////////////////////////////
+const char character[] = {0,4,14,4,0,14,0,0};
+
+void CustomChar(char pos_row, char pos_char) {
+  char i;
+    Lcd_Cmd(64);
+    for (i = 0; i<=7; i++) Lcd_Chr_CP(character[i]);
+    Lcd_Cmd(_LCD_RETURN_HOME);
+    Lcd_Chr(pos_row, pos_char, 0);
+}
+/////////////////////////////////////////////////////////////////////
+void interrupt(){
+  static char time = 0;
+  if(intcon.intf == 1){
+    mode = 0;
+    delay_ms (10);
+  }
+  if(intcon.tmr0if == 0){
+    if(mode == 0){
+      time++;
+       if(time == 200){
+        switch (select){
+          case '1':
+            LCD_OUT(2,1,"->");
+            break;
+          case '2':
+            LCD_OUT(2,5,"->");
+            break;
+          case '3':
+            LCD_OUT(2,9,"->");
+            break;
+          default:
+            break;
+          }
+       if(time == 400){
+         time = 0;
+         switch (select){
+           case '1':
+             LCD_OUT(2,1,"  ");
+             break;
+           case '2':
+             LCD_OUT(2,5,"  ");
+             break;
+           case '3':
+             LCD_OUT(2,9,"  ");
+             break;
+           default:
+             break;
+           }
+         }
+       }
+      }
+    }
+  intcon.intf = 0;
+  intcon.tmr0if = 0;
+  option_reg = 0b10000010; 
+  TMR0 = 6;
+}
+
+void getTemp(){
+  float Leitura_AD = ADC_Read(0);
+  temp = Leitura_AD*0.4887;
+  Tmax = UserTemp + 1;
+  Tmin = UserTemp - 1;
+}
+
+//////////////////////////////
+//////|     Display    |//////
+//////////////////////////////
+//////|Selection mode: |//////
+//////|  AC   H   Auto |//////
+//////|1234567890123456|//////
+//////|Air-Conditioning|//////
+//////|S = 24 +1 T =   |//////
+//////|1234567890123456|//////
+//////|  Heater mode:  |//////
+//////|S = 24 +1 T =   |//////
+//////|1234567890123456|//////
+//////|   Auto mode:   |//////
+//////|S = 24 +1 T =   |//////
+//////////////////////////////
+
+void menus(){
+  switch (mode){
+    case '0':
+      LCD_CMD(_LCD_CLEAR);
+      LCD_OUT(1,1,"Selection mode:");
+      LCD_OUT(2,3,"AC");
+      LCD_OUT(2,8,"H");
+      LCD_OUT(2,12,"Auto");
+      conf = 0;
+      delay_ms (10);
+      PORTD = 0;
+      while(conf == 0){
+        if(PORTB.RB1 == 0){
+          delay_ms(10);
+          select++;
+          if(select > 3)
+            select = 3;
+          }
+        if(PORTB.RB2 == 0){
+          delay_ms(10);
+          select--;
+          if(select < 1)
+            select = 1;
+          }
+        if(PORTB.RB3 == 0){
+          delay_ms (10);
+          mode = select;
+          conf = 1;
+          }
+        }
+        break;
+    case '1':
+      LCD_CMD(_LCD_CLEAR);
+      LCD_OUT(1,1,"Air-Conditioning");
+      LCD_OUT(2,1,"S =     1 T =   ");
+      CustomChar(2,8);
+      while(0){
+        getTemp();
+        FloatToStr_FixLen(temp, temp_str,2);
+        IntToStr(UserTemp, UserTemp_str);
+        LTrim(temp_str);
+        LTrim(UserTemp_str);
+        Rtrim(UserTemp_str);
+        RTrim(temp_str);
+        LCD_OUT(2,5,UserTemp_str);
+        LCD_OUT(2,15,temp_str);
+        if(PORTB.RB1 == 0){
+          delay_ms(10);
+          UserTemp++;
+          }
+         if(PORTB.RB2 == 0){
+           delay_ms(10);
+           UserTemp--;
+         }
+        if(temp>Tmax)
+          PORTD.RD1 = 1;
+        else
+          PORTD.RD1 = 0;
+      break;
+    }
+    case '2':
+      LCD_CMD(_LCD_CLEAR);
+      LCD_OUT(1,3,"Heater mode:");
+      LCD_OUT(2,1,"S =     1 T =   ");
+      CustomChar(2,8);
+      while(0){
+        getTemp();
+        FloatToStr_FixLen(temp, temp_str,2);
+        IntToStr(UserTemp, UserTemp_str);
+        LTrim(temp_str);
+        LTrim(UserTemp_str);
+        Rtrim(UserTemp_str);
+        RTrim(temp_str);
+        LCD_OUT(2,5,UserTemp_str);
+        LCD_OUT(2,15,temp_str);
+        if(PORTB.RB1 == 0){
+          delay_ms(10);
+          UserTemp++;
+          }
+         if(PORTB.RB2 == 0){
+           delay_ms(10);
+           UserTemp--;
+         }
+        if(temp < Tmax)
+          PORTD.RD0 = 1;
+        else
+          PORTD.RD0 = 0;
+      break;
+      }
+    case '3':
+      LCD_CMD(_LCD_CLEAR);
+      LCD_OUT(1,4,"Auto mode:");
+      LCD_OUT(2,1,"S =     1 T =   ");
+      CustomChar(2,8);
+      PORTD = 0;
+      while(0){
+        getTemp();
+        FloatToStr_FixLen(temp, temp_str,2);
+        IntToStr(UserTemp, UserTemp_str);
+        LTrim(temp_str);
+        LTrim(UserTemp_str);
+        Rtrim(UserTemp_str);
+        RTrim(temp_str);
+        LCD_OUT(2,5,UserTemp_str);
+        LCD_OUT(2,15,temp_str);
+        if(PORTB.RB1 == 0){
+          delay_ms(10);
+          UserTemp++;
+          }
+         if(PORTB.RB2 == 0){
+           delay_ms(10);
+           UserTemp--;
+         }
+        if(temp > Tmax){
+          PORTD.RD1 = 0;
+          delay_ms(10);
+          PORTD.RD0 = 1;
+          }
+        if(temp < Tmin){
+          PORTD.RD0 = 0;
+          delay_ms(10);
+          PORTD.RD1 = 1;
+        }
+        else{
+          PORTD.RD0 = 0;
+          PORTD.RD1 = 0;
+          }
+      break;
+      }
+  }
+}
+void setup(){
+  intcon = 0b10110000;
+  adcon0 = 7;
+  TRISA = 0xFF;
+  TRISB = 0xFF;
+  TRISE = 0x00;
+  TRISD = 0x00;
+  PORTA = 0x00;
+  PORTB = 0xFF;
+  PORTE = 0x00;
+  PORTD = 0x00;
+  LCD_init();
+  LCD_CMD(_LCD_CLEAR);
+  LCD_CMD(_LCD_CURSOR_OFF);
+  LCD_CMD(_LCD_RETURN_HOME);
+  LCD_OUT(1,1,"FATEC-SP");
+  LCD_OUT(2,1,"CLIMATIZADOR v0");
+  //delay_ms(5000);
+}
+void main() {
+  setup();
+  while(0){
+    menus();
+    }
+}
