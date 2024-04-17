@@ -1,0 +1,152 @@
+////////////////////////////////////////////////////////////////////////////////
+/*Especificações de Hardware:
+  - Display LCD 16X02
+  - Sensor Ultrassônico JSN-SR04T
+      VCC
+      GND
+      TRIGGER = RC3
+      ECHO    = RC2
+      
+  - Válvula Solenóide
+      Pino de Acionamento = RC0
+  
+ */
+//////////////////////Comunicação do LCD////////////////////////////////////////
+sbit LCD_RS at RB6_bit;
+sbit LCD_EN at RB7_bit;
+sbit LCD_D4 at RA5_bit;
+sbit LCD_D5 at RE0_bit;
+sbit LCD_D6 at RE1_bit;
+sbit LCD_D7 at RE2_bit;
+
+sbit LCD_RS_Direction at TRISB6_bit;
+sbit LCD_EN_Direction at TRISB7_bit;
+sbit LCD_D4_Direction at TRISA5_bit;
+sbit LCD_D5_Direction at TRISE0_bit;
+sbit LCD_D6_Direction at TRISE1_bit;
+sbit LCD_D7_Direction at TRISE2_bit;
+////////////////////Fim da comunicação//////////////////////////////////////////
+////////////////////Macros utilizadas///////////////////////////////////////////
+#define trig RC3_bit
+////////////////////Protótipos das funções//////////////////////////////////////
+void setup();
+void trigger();
+void menus();
+void distance();
+
+//////////////////////Variáveis/////////////////////////////////////////////////
+char txt[4]; //Conversão de dados para string
+
+char *txt1[] = {"FATEC-SP"}, *txt2[] = {"PROJ MICRO-II"}, 
+     *txt3[] = {"Dist =     cm"}, *txt4[] = {"**device error**"},
+     *txt5[] = {"QTD =      L/m3"};
+
+char apaga[] = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
+//               1   2   3   4   5   6   7   8   9   0   1   2   3   4   5   6
+
+unsigned char tempo_H, tempo_L, distancia_cm;
+const unsigned char menu = 0;
+
+unsigned int periodo;       //Periodo do pulso do ECHO do sensor ultrassônico
+////////////////////////////////////////////////////////////////////////////////
+void interrupt(){
+  if(CCP1IF_bit && CCP1CON.B0){
+    CCP1IF_bit = 0x00;     //Zera a flag da interrupção
+    CCP1IE_bit = 0x00;     //Desabilita a interrupção externa do pino
+    CCP1CON    = 0x04;     //Configura borda de captura para descida
+    CCP1IE_bit = 0x01;     //habilita a interrupção externa do pino
+    TMR1H      = 0x00;     //Zera o registrador do Timer 1
+    TMR1L      = 0x00;
+    TMR1ON_bit = 0x01;     //Habilita a contagem de tempo
+  } else if (CCP1IF_bit){
+    CCP1IF_bit = 0x00;     //Limpa a falg para nova captura
+    TMR1ON_bit = 0x00;     //Desabilita a contagem de tempo
+    CCP1IE_bit = 0x00;     //Desabilita a interrupção externa do pino
+    CCP1CON    = 0x05;     //Configura a borda de captura para subida
+    CCP1IE_bit = 0x01;     //Habilita a interrupção extena do pino
+    Tempo_H    = CCPR1H;   //Carrega os valores de tempo capturados (us)
+    Tempo_L    = CCPR1L;
+  }
+}
+///////////////////////////Void Main////////////////////////////////////////////
+void main() {
+  setup();
+  LCD_OUT(2,2, *txt5);
+  while(1){
+    menus();
+    distance();
+    
+  }
+}
+/////////////////////////Funções Auxiliares/////////////////////////////////////
+void distance(){
+  trigger();                //Dispara o pulso do sensor
+  delay_ms(100);            //Delay de 100ms
+  //Periodo relativo do ECHO em us
+  periodo = (Tempo_H<<8) + Tempo_L;
+  //Converte a distância para cm
+  distancia_cm = periodo/58;
+  ByteToStr(distancia_cm, txt);
+  //Limite de leitura para distancias precisas do JSN-SR04T
+  if((distancia_cm < 25 || distancia_cm > 595)){
+    LCD_OUT(1,1,apaga);
+    LCD_OUT(2,1,apaga);
+    LCD_OUT(2,3,*txt4);
+    delay_ms(100);
+  } else if (menu == 1){
+    LCD_OUT(2,1,apaga);
+    LCD_OUT(2,2,*txt3);
+    LCD_OUT(2,8,txt);
+    delay_ms(100);
+  }
+}
+
+void trigger(){
+  trig  = 0x01;
+  delay_us(10);
+  trig  = 0x00;
+}
+
+void setup(){
+  CMCON  = 0x07;            //Desabilita os consparadores
+  TRISC  = 0x04;            //Entrada RC1.CCP1, RC2 digital
+  PORTC  = 0x00;            //PORTC inicia em nível baixo
+
+  INTCON = 0b1100000;       //Liga interrupções GIE e PEIE
+  TMR1IF_bit  = 0x00;       //Habilita a contagem de tempo
+  CCP1IE_bit  = 0x01;       //Habilita a interrupção extena do pino
+  CCP1CON     = 0x05;       //Configura a borda de captura para subida
+  //Preescaler TMR1 de 1:2
+  T1CKPS1_bit = 0x00;
+  T1CKPS0_bit = 0x01;
+
+  TMR1CS_bit  = 0x00;       //Clock interno selecionado (FOSC/4)
+  TMR1ON_bit  = 0x00;       //Desabilita a contagem do TMR1
+
+  LCD_init();               //Inicializa o display
+  //Limpa o display LCD
+  LCD_OUT(1,1,apaga);
+  LCD_OUT(2,1,apaga);
+  //Escreve a mensagem no display LCD
+  LCD_OUT(1,1,*txt1);
+  LCD_OUT(2,1,*txt2);
+  delay_ms(5000);           //Delay de 5s
+}
+
+void menus(){
+  switch (menu){
+    case '0':
+
+
+      break;
+    case '1':
+
+
+      break;
+    case '2':
+
+
+      break;
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
